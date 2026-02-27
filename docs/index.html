@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Trace Viewer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading trace...</div>
+</div>
+
+<div id="app">
+  <div id="summary"></div>
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="dag">Layout DAG</button>
+    <button class="tab-btn" data-tab="l1">L1 Spill Timeline</button>
+    <div id="trace-selector"></div>
+  </div>
+  <div id="toolbar">
+    <input type="text" id="search" placeholder="Search op name/type...">
+    <label><input type="checkbox" id="filter-dram"> DRAM fallback</label>
+    <label><input type="checkbox" id="filter-failed"> Failed evals</label>
+    <label><input type="checkbox" id="filter-reshard"> Has reshards</label>
+  </div>
+  <div id="main">
+    <div id="dag-panel">
+      <div id="cy"></div>
+      <div id="dag-legend">
+        <div class="legend-row"><span class="swatch" style="background:#50c878"></span> L1 Sharded</div>
+        <div class="legend-row"><span class="swatch" style="background:#f0c040"></span> L1 Interleaved</div>
+        <div class="legend-row"><span class="swatch" style="background:#e05050"></span> DRAM / Fallback</div>
+        <div class="legend-row"><span class="swatch" style="background:#40b0b0;border:1px dashed #40b0b0"></span> In-place</div>
+        <div class="legend-row"><span class="line-swatch" style="border-color:#5080b0"></span> Dataflow</div>
+        <div class="legend-row"><span class="line-swatch dashed" style="border-color:#e08040"></span> Reshard</div>
+        <div class="legend-row"><span class="swatch" style="background:#a070d0;border-style:dashed;border:1px dashed #a070d0"></span> Fork node</div>
+      </div>
+    </div>
+    <div id="detail-panel">
+      <div id="detail-container"></div>
+    </div>
+  </div>
+  <div id="l1-panel">
+    <canvas id="l1-canvas"></canvas>
+    <div id="l1-detail"></div>
+  </div>
+</div>
+
+<!-- Vendor libs (static GitHub Pages mode) -->
+<script src="vendor/cytoscape.min.js"></script>
+<script src="vendor/dagre.min.js"></script>
+<script src="vendor/cytoscape-dagre.js"></script>
+<script>
+  // Register dagre layout extension with cytoscape
+  if (typeof cytoscape !== 'undefined' && typeof cytoscapeDagre !== 'undefined') {
+    cytoscape.use(cytoscapeDagre);
+  }
+</script>
+
+<!-- App modules -->
+<script src="utils.js"></script>
+<script src="dag.js"></script>
+<script src="detail.js"></script>
+<script src="timeline.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
