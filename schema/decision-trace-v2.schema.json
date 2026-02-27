@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tenstorrent/tt-decision-trace-viewer/schema/decision-trace-v2.schema.json",
+  "title": "Decision Trace v2",
+  "description": "Output format of the tt-mlir greedy optimizer decision trace (DecisionTrace v2)",
+  "type": "object",
+  "required": ["version", "forwardPass", "edges", "finalChoices"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [2, 3],
+      "description": "Schema version (2 = original, 3 = adds isInplace)"
+    },
+    "functionName": {
+      "type": "string",
+      "description": "MLIR function name being optimized"
+    },
+    "beamWidth": {
+      "type": "integer",
+      "description": "Beam search width used during forward pass"
+    },
+    "totalOps": {
+      "type": "integer",
+      "description": "Total number of ops processed"
+    },
+    "forwardPass": {
+      "type": "array",
+      "description": "Per-op decision records from the forward layout propagation pass",
+      "items": {
+        "$ref": "#/$defs/OpDecisionRecord"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Producer-consumer dataflow edges with reshard information",
+      "items": {
+        "$ref": "#/$defs/EdgeRecord"
+      }
+    },
+    "backwardPass": {
+      "type": "object",
+      "description": "Backward pass fork resolution decisions",
+      "properties": {
+        "forkResolutions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ForkResolutionRecord"
+          }
+        }
+      }
+    },
+    "finalChoices": {
+      "type": "array",
+      "description": "Final layout assignment for each op after forward+backward passes",
+      "items": {
+        "$ref": "#/$defs/FinalChoiceRecord"
+      }
+    },
+    "spillManagement": {
+      "$ref": "#/$defs/SpillManagementTrace",
+      "description": "L1 memory spill management trace"
+    }
+  },
+  "$defs": {
+    "OpDecisionRecord": {
+      "type": "object",
+      "required": ["opIndex", "opName"],
+      "properties": {
+        "opIndex": {
+          "type": "integer",
+          "description": "Index of the op in the forward pass schedule"
+        },
+        "opName": {
+          "type": "string",
+          "description": "TTNN op name (e.g. 'ttnn.matmul')"
+        },
+        "opLocation": {
+          "type": "string",
+          "description": "MLIR location string"
+        },
+        "inputCandidateSets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InputCandidateSetRecord"
+          }
+        },
+        "outputHints": {
+          "$ref": "#/$defs/OutputHintsRecord"
+        },
+        "crossProductSize": {
+          "type": "integer",
+          "description": "Number of input*hint combinations evaluated"
+        },
+        "evaluations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvaluationRecord"
+          }
+        },
+        "beam": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BeamEntryRecord"
+          }
+        },
+        "usedDramFallback": {
+          "type": "boolean",
+          "description": "Whether this op fell back to DRAM due to no valid L1 candidate"
+        },
+        "isInplace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this is a zero-result in-place op (e.g. paged_update_cache). Informational only, no layout decision."
+        }
+      }
+    },
+    "InputCandidateSetRecord": {
+      "type": "object",
+      "properties": {
+        "operandIndex": { "type": "integer" },
+        "fromProducerBeam": { "type": "integer" },
+        "fromReshard": { "type": "integer" },
+        "candidates": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "OutputHintsRecord": {
+      "type": "object",
+      "properties": {
+        "primaryCount": { "type": "integer" },
+        "fallbackCount": { "type": "integer" },
+        "attemptL1Sharding": { "type": "boolean" }
+      }
+    },
+    "EvaluationRecord": {
+      "type": "object",
+      "properties": {
+        "hint": { "type": "string", "description": "Output hint layout string" },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Input layout strings used for this evaluation"
+        },
+        "output": { "type": "string", "description": "Resulting output layout if valid" },
+        "valid": { "type": "boolean" },
+        "failureReason": { "type": "string" },
+        "score": { "$ref": "#/$defs/ScoreFields" }
+      }
+    },
+    "ScoreFields": {
+      "type": "object",
+      "properties": {
+        "isL1": { "type": "boolean" },
+        "isSharded": { "type": "boolean" },
+        "inputDramBytes": { "type": "integer" },
+        "requiresReshard": { "type": "boolean" },
+        "coreCount": { "type": "integer" },
+        "outputL1Usage": { "type": "integer" }
+      }
+    },
+    "BeamEntryRecord": {
+      "type": "object",
+      "properties": {
+        "rank": { "type": "integer" },
+        "outputLayout": { "type": "string" },
+        "score": { "$ref": "#/$defs/ScoreFields" }
+      }
+    },
+    "EdgeRecord": {
+      "type": "object",
+      "required": ["producerOpIndex", "consumerOpIndex"],
+      "properties": {
+        "producerOpIndex": { "type": "integer" },
+        "consumerOpIndex": { "type": "integer" },
+        "operandIndex": { "type": "integer" },
+        "hasReshard": { "type": "boolean" },
+        "reshardLayout": { "type": "string" }
+      }
+    },
+    "ForkResolutionRecord": {
+      "type": "object",
+      "properties": {
+        "opIndex": { "type": "integer" },
+        "opName": { "type": "string" },
+        "opLocation": { "type": "string" },
+        "chosenCandidateIndex": { "type": "integer" },
+        "numConsumers": { "type": "integer" },
+        "consumerOpIndices": {
+          "type": "array",
+          "items": { "type": "integer" }
+        }
+      }
+    },
+    "FinalChoiceRecord": {
+      "type": "object",
+      "properties": {
+        "opIndex": { "type": "integer" },
+        "opName": { "type": "string" },
+        "chosenLayout": { "type": "string" }
+      }
+    },
+    "SpillManagementTrace": {
+      "type": "object",
+      "properties": {
+        "budget": { "type": "integer", "description": "L1 memory budget in bytes" },
+        "scheduleSize": { "type": "integer" },
+        "totalSpills": { "type": "integer" },
+        "finalOccupied": { "type": "integer" },
+        "finalLiveTensors": { "type": "integer" },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpillEventRecord"
+          }
+        }
+      }
+    },
+    "SpillEventRecord": {
+      "type": "object",
+      "properties": {
+        "position": { "type": "integer", "description": "Schedule position" },
+        "action": {
+          "type": "string",
+          "enum": ["live_added", "dead_removal", "eviction", "demotion_success", "demotion_failed", "self_spill", "oom", "revalidation"]
+        },
+        "occupiedL1Before": { "type": "integer" },
+        "occupiedL1After": { "type": "integer" },
+        "opL1Usage": { "type": "integer" },
+        "opName": { "type": "string" },
+        "victimName": { "type": "string" },
+        "details": { "type": "string" }
+      }
+    }
+  }
+}
