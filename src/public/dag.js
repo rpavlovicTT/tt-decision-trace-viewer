@@ -81,6 +81,7 @@ function initDAG(data) {
           source: srcId,
           target: tgtId,
           operandIndex: e.operandIndex,
+          producerResultIndex: e.producerResultIndex || 0,
         },
         classes: 'dataflow',
       });

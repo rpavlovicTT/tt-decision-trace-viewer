@@ -211,6 +211,7 @@ function buildLinksSection(op, arrayIndex) {
       const name = pOp ? pOp.opName.replace('ttnn.', '') : `op#${e.producerOpIndex}`;
       const pArrayIdx = findArrayIndexByOpIndex(e.producerOpIndex);
       html += `<span class="op-link" onclick="focusOp(${pArrayIdx})">#${e.producerOpIndex} ${escHtml(name)}`;
+      if (e.producerResultIndex > 0) html += `<span class="reshard-badge" title="producer result index">:${e.producerResultIndex}</span>`;
       if (e.hasReshard) html += '<span class="reshard-badge">R</span>';
       html += '</span> ';
     });
